@@ -67,6 +67,7 @@ func isHerokuPage(b []byte) bool {
 	return false
 }
 
+// procApp executes an HTTP GET on a passed Heroku app and does some rudimentary analysis
 func procApp(site string, c chan *reqRslt) {
 	var (
 		ferr       error
