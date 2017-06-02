@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 )
 
@@ -50,13 +51,20 @@ func isHTML(b []byte) bool {
 	return false
 }
 
-// isHerokuPage indicates if the response body is a Heroku error page or welcome page
-func isHerokuPage(b []byte) bool {
+// isHerokuErrPage indicates if the response body is a Heroku error page or welcome page
+func isHerokuErrPage(b []byte) bool {
 
 	if bytes.Contains(b, []byte("www.herokucdn.com/error-pages/application-error.html")) {
 		// Assume the response is the Heroku Application Error page
 		return true
 	}
+
+	// No Heroku page "tell" was found
+	return false
+}
+
+// isHerokuWelPage indicates if the response body is a Heroku error page or welcome page
+func isHerokuWelPage(b []byte) bool {
 
 	if bytes.Contains(b, []byte("Welcome to your new app")) {
 		// Assume the response is the Heroku Welcome page
@@ -67,6 +75,27 @@ func isHerokuPage(b []byte) bool {
 	return false
 }
 
+<<<<<<< HEAD
+// isAvantErrPage indicates if the response body is a Heroku error page or welcome page
+func isAvantErrPage(b []byte) bool {
+
+	if bytes.Contains(b, []byte("We have been notified, please try again later. Have a question? Call us at 800-712-5407")) {
+		// Assume the response is the Heroku Welcome page
+		return true
+	}
+
+	if bytes.Contains(b, []byte("We have been notified, please try again later. Have a question? Call us at 0800 610 1516")) {
+		// Assume the response is the Heroku Welcome page
+		return true
+	}
+
+	// No Heroku page "tell" was found
+	return false
+}
+
+=======
+// procApp executes an HTTP GET on a passed Heroku app and does some rudimentary analysis
+>>>>>>> b6a1ed9ec0037adc3f763a64e9e10422e4d045fd
 func procApp(site string, c chan *reqRslt) {
 	var (
 		ferr       error
@@ -89,7 +118,24 @@ func procApp(site string, c chan *reqRslt) {
 
 	// Execute a GET on the Heroku app domain
 	tURL = fmt.Sprintf("http://%v.herokuapp.com", site)
-	if resp, ferr = http.Get(tURL); ferr != nil {
+	resp, ferr = http.Get(tURL)
+
+	// General error when executing the HTTP GET?
+	if ferr != nil {
+		// EOF error? (no data in the response)
+		if strings.Contains(ferr.Error(), "EOF") {
+			// No data returned in the response
+			tReslt.fill(site, false, 999, fmt.Sprintf("no response data: %v", ferr))
+			goto WrapUp
+		}
+
+		// Certificate error?
+		if strings.Contains(ferr.Error(), "x509: certificate is valid for") {
+			// No data returned in the response
+			tReslt.fill(site, false, 200, fmt.Sprintf("SSL certificate error: %v", ferr))
+			goto WrapUp
+		}
+
 		// Error occurred during the request
 		log.Printf("ERROR: error occurred fetching: %v. See: %v", tURL, ferr)
 		tReslt.fill(site, false, 999, fmt.Sprintf("error getting site response: %v", ferr))
@@ -107,10 +153,24 @@ func procApp(site string, c chan *reqRslt) {
 		goto WrapUp
 	}
 
-	// Is the response the Heroku Application Error?
-	if isHerokuPage(body) {
+	// Is the response the Avant Application Error?
+	if isAvantErrPage(body) {
 		// Found a Heroku page
-		tReslt.fill(site, false, resp.StatusCode, "Heroku welcome or application error page")
+		tReslt.fill(site, false, resp.StatusCode, "Avant error page")
+		goto WrapUp
+	}
+
+	// Is the response the Heroku Error page?
+	if isHerokuErrPage(body) {
+		// Found a Heroku page
+		tReslt.fill(site, false, resp.StatusCode, "Heroku error page")
+		goto WrapUp
+	}
+
+	// Is the response the Heroku Welcome page?
+	if isHerokuWelPage(body) {
+		// Found a Heroku page
+		tReslt.fill(site, false, resp.StatusCode, "Heroku welcome page")
 		goto WrapUp
 	}
 
