@@ -75,7 +75,6 @@ func isHerokuWelPage(b []byte) bool {
 	return false
 }
 
-<<<<<<< HEAD
 // isAvantErrPage indicates if the response body is a Heroku error page or welcome page
 func isAvantErrPage(b []byte) bool {
 
@@ -93,9 +92,7 @@ func isAvantErrPage(b []byte) bool {
 	return false
 }
 
-=======
 // procApp executes an HTTP GET on a passed Heroku app and does some rudimentary analysis
->>>>>>> b6a1ed9ec0037adc3f763a64e9e10422e4d045fd
 func procApp(site string, c chan *reqRslt) {
 	var (
 		ferr       error
