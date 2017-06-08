@@ -5,11 +5,11 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"strings"
 	"sync"
+	"time"
 )
 
 type reqRslt struct {
@@ -134,7 +134,7 @@ func procApp(site string, c chan *reqRslt) {
 		}
 
 		// Error occurred during the request
-		log.Printf("ERROR: error occurred fetching: %v. See: %v", tURL, ferr)
+		fmt.Printf("ERROR: error occurred fetching: %v. See: %v", tURL, ferr)
 		tReslt.fill(site, false, 999, fmt.Sprintf("error getting site response: %v", ferr))
 		goto WrapUp
 	}
@@ -145,7 +145,7 @@ func procApp(site string, c chan *reqRslt) {
 	// Read the response body
 	if body, ferr = ioutil.ReadAll(resp.Body); ferr != nil {
 		// Error occurred reading a response body
-		log.Printf("ERROR: error occurred reading a response body for site: %v. See: %v\n", site, ferr)
+		fmt.Printf("ERROR: error occurred reading a response body for site: %v. See: %v\n", site, ferr)
 		tReslt.fill(site, false, 999, fmt.Sprintf("error reading the site response: %v", ferr))
 		goto WrapUp
 	}
@@ -192,20 +192,22 @@ WrapUp:
 }
 
 func main() {
-	log.Printf("INFO: start processing...\n")
+	fmt.Printf("\n\n*********************************\nINFO: Start processing job\n---------------------------------\n\n")
 
 	// Grab file information to be processed
 	if args = os.Args; len(args) != 2 {
 		// Missing filename parameter
-		log.Fatalln("END: Missing filename parameter")
+		fmt.Printf("ERROR: Missing filename parameter\n")
+		os.Exit(1)
 	}
 
 	// Read file of Heroku apps into a slice
 	if inFile, err = os.Open(args[1]); err != nil {
 		// Error occurred opening file of heroku apps
-		log.Fatalf("ERROR: error occurred opening input file. See: %v\n", err)
+		fmt.Printf("ERROR: error occurred opening input file. See: %v\n", err)
+		os.Exit(1)
 	}
-	defer inFile.Close()
+	defer inFile.Close() // NOTE: defer keywork
 
 	// Read the file contents into a slice of strings
 	scnr = bufio.NewScanner(inFile)
@@ -215,22 +217,41 @@ func main() {
 
 	// Determine if there are any read errors
 	if scnr.Err() != nil {
-		log.Fatalf("ERROR: error reading the input file. See: %v\n", err)
+		fmt.Printf("ERROR: error reading the input file. See: %v\n", err)
+		os.Exit(1)
 	}
 
+	fmt.Printf("*********************************\nINFO: Read in %v URLS to fetch\n---------------------------------\n\n", len(apps))
+
 	chn := make(chan *reqRslt, len(apps))
+
+	fmt.Printf("**********************************************************\nINFO: Starting %v goroutines to get responses from %v URLs\n-------------------------------------------------------------\n", len(apps), len(apps))
 
 	// Iterate through the list of apps
 	for i := 0; i < len(apps); i++ {
 		wg.Add(1)                // Account for a new goroutine
 		go procApp(apps[i], chn) // Spin up a goroutine to process an app reference
+		fmt.Printf("go routine: starting #%v of %v for site: %v\n", i+1, len(apps), apps[i])
 	}
 
 	// Wait for all goroutines to stop processing
-	log.Printf("INFO: wait for goroutines to complete\n")
+	fmt.Printf("\n\n*********************************\nINFO: All goroutines have been fired. Now wait for them to complete. %v\n---------------------------------\n\n", time.Now())
 	wg.Wait()
 
-	log.Printf("INFO: the number of elements in the channel is: %v\n", len(chn))
+	fmt.Printf("*********************************\nINFO: All goroutines have now ended. %v\n---------------------------------\n\n", time.Now())
+
+	// Take a pause and wait on user input to proceed
+	fmt.Printf("******************************************************************\nINFO: Taking a quick pause. Type something and hit enter to resume the program:\n\n")
+	reader := bufio.NewReader(os.Stdin)
+	var text string
+	for {
+		text, _ = reader.ReadString('\n')
+		if len(text) != 0 {
+			break
+		}
+	}
+
+	fmt.Printf("\n\n*********************************\nINFO: Printing out the results.\n---------------------------------\n")
 
 	// Print out results
 	fmt.Printf("Application,Accessible,HTTP Status,Notes\n")
@@ -239,5 +260,5 @@ func main() {
 		fmt.Printf("%v,%v,%v,%v\n", v.App, v.Accessible, v.Status, v.Notes)
 	}
 
-	log.Printf("INFO: complete processing\n")
+	fmt.Printf("\n\n*********************************\nINFO: complete processing\n---------------------------------\n\n")
 }
