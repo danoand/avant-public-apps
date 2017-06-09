@@ -225,6 +225,8 @@ func main() {
 
 	chn := make(chan *reqRslt, len(apps))
 
+	fmt.Printf("**********************************************************\nINFO: Created a channel which contains %v elements\n-------------------------------------------------------------\n\n", len(chn))
+
 	fmt.Printf("**********************************************************\nINFO: Starting %v goroutines to get responses from %v URLs\n-------------------------------------------------------------\n", len(apps), len(apps))
 
 	// Iterate through the list of apps
@@ -239,6 +241,8 @@ func main() {
 	wg.Wait()
 
 	fmt.Printf("*********************************\nINFO: All goroutines have now ended. %v\n---------------------------------\n\n", time.Now())
+
+	fmt.Printf("**********************************************************\nINFO: The output channel now has %v elements\n-------------------------------------------------------------\n\n", len(chn))
 
 	// Take a pause and wait on user input to proceed
 	fmt.Printf("******************************************************************\nINFO: Taking a quick pause. Type something and hit enter to resume the program:\n\n")
